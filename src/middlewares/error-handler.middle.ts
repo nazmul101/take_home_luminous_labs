@@ -43,7 +43,7 @@ export function errorHandler(
   // `type: 'entity.parse.failed'`. Without this branch it falls through to the 500
   // below - so a client sending broken JSON would look like a server fault, page
   // whoever is on call, and bury a real outage in noise. Found by hand with curl, not
-  // by the tests: see notes/ai-log.md.
+  // by the tests: see section 2 of DECISIONS.md.
   if (isBodyParseError(err)) {
     res.status(400).json({
       success: false,

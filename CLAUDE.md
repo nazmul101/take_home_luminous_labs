@@ -43,7 +43,7 @@ The load-bearing ones, with the phrasing to use out loud:
 - **Authorize before checking existence** — otherwise the endpoint is a user-enumeration oracle for any holder of a valid token.
 - **One login endpoint** — the role comes from the user's row; a per-role route would do identical work.
 - **No `DESC` in the index** — Postgres scans a B-tree backwards; the plan says `Index Scan Backward`.
-- **Alias the rendered timestamp `created_at_iso`, never `created_at`** — see the alias bug in `notes/ai-log.md`.
+- **Alias the rendered timestamp `created_at_iso`, never `created_at`** — see the alias bug in section 2 of `DECISIONS.md`.
 
 ## Code conventions
 
@@ -85,7 +85,6 @@ Seeded logins, all `password123`: `admin@example.com` (admin), `user@example.com
 | `DECISIONS.md` | The graded artifact. Four questions from the brief. |
 | `README.md` | Setup, verified from a clean clone. |
 | `postman/` | Importable collection; login stores the token automatically. |
-| `notes/ai-log.md` | Running record of model overrides. Feeds question 2. |
 | `notes/benchmarks.md` | Raw `EXPLAIN ANALYZE` output. Feeds question 3. |
 
 ### The four questions DECISIONS.md must answer
@@ -100,7 +99,7 @@ Close with the pre-answers to the four call questions.
 ## Working agreements
 
 - **Ask before adding any dependency, layer, or abstraction.** Scope creep is the main risk.
-- Write `notes/ai-log.md` **as work happens**. Reconstructed at the end it becomes fiction, and question 2 is designed to detect that.
+- Write section 2 of `DECISIONS.md` **as work happens**. Reconstructed at the end it becomes fiction, and question 2 is designed to detect that. There is no separate AI log file — it duplicated section 2.
 - Measure, do not assert. Any performance claim needs a pasted query plan behind it.
 - **Any schema change invalidates every number in `DECISIONS.md`** — re-run `npm run bench` and re-sync the figures.
 - Prefer fewer tests that each pin one judgement call over coverage padding.

@@ -345,9 +345,10 @@ and re-sync the figures — "consistent with what you claimed" is a grading crit
 
 ## Running log — keep current as work proceeds
 
-- `notes/ai-log.md` — every model override, with reasoning. Include cases where the
-  model was right and the human reverted; that is calibration, and it is the one
-  answer that cannot be fabricated.
+- Section 2 of `DECISIONS.md` — every model override, with reasoning. Include cases
+  where the model was right and the human reverted; that is calibration, and it is the
+  one answer that cannot be fabricated. Written as work happens, never reconstructed.
 - `notes/benchmarks.md` — raw plans and timings, pasted unedited.
 
-Write both **as work happens**, never reconstructed at the end.
+There is deliberately no separate AI log file: it duplicated section 2 and proved
+nothing a reviewer could verify.

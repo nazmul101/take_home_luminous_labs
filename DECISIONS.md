@@ -100,8 +100,8 @@ The fix is one line in `assertMayViewOrders`.
 
 ## 2. What I used AI for, and where I overrode it
 
-I used Claude for most of the code. The full list of disagreements is in
-[`notes/ai-log.md`](notes/ai-log.md), written as I went. The five that mattered:
+I used Claude for most of the code. I kept a note of every point where we disagreed.
+The five that mattered:
 
 **1. It wrote an index with `DESC` in it, and couldn't say why.**
 Its version was `(user_id, created_at DESC, id DESC)`. Postgres can read an index
@@ -166,6 +166,26 @@ with the tests.
 Both times the tests and the AI agreed with each other, and both were wrong. Actually
 running the thing is what found the problem. That's why `npm run bench` exists instead
 of me just claiming the index works.
+
+### Smaller ones, for completeness
+
+- **Prisma.** It suggested an ORM. Prisma's cursor support only handles a single unique
+  column, so my two-part cursor would have ended up as raw SQL anyway.
+- **Three layers.** It justified splitting route/service/repository as "useful for future
+  endpoints." There are no future endpoints. I kept the split for a different reason —
+  the permission rule needed its own test.
+- **No `COUNT(*)` ever.** I wrote that rule first and it was too absolute. Real products
+  do need counts. Softened to: not on this request.
+- **Two login routes.** I asked for a separate admin login. It pointed out both would do
+  identical work, so there is one.
+- **`statusCode` in the response body.** I wanted it. It duplicates the HTTP status, and
+  if the two disagree the client has to pick one. Dropped it.
+- **Scope.** When I added roles, login and Postman, it warned this was pushing past the
+  time budget and that overbuilding counts against you. I kept those but cut the empty
+  folders it flagged.
+- **Benchmarks after a schema change.** It pointed out that changing the schema made every
+  number in this file stale. It was right and I hadn't thought about it — they were
+  re-measured.
 
 ---
 

@@ -153,7 +153,7 @@ src/
   scripts/                   migrate, seed, seed-skew, bench
 
 postman/                     importable collection
-notes/                       ai-log.md, benchmarks.md
+notes/benchmarks.md          raw EXPLAIN output
 ```
 
 A repository layer is a deliberate addition — the reference puts SQL in services, but
