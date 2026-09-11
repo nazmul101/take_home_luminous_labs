@@ -263,9 +263,6 @@ more than one copy. *I'd build it* if there were no gateway.
 **Redis.** Nothing to speed up at 2 ms. *I'd revisit* when the memory problem above
 actually shows up.
 
-**Table partitioning.** The known fix for that problem, deliberately not built early. *I'd
-build it* when the index size graph starts climbing towards `shared_buffers`.
-
 **A products table.** Nothing here needs product details, and nothing sorts or filters by
 product. *I'd build it* — or call a product service — when the response needs product
 names.
