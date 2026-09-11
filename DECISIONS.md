@@ -192,80 +192,44 @@ of me just claiming the index works.
 ## 3. What breaks first at 100× the data
 
 100× means about 500,000 users and 5 million orders.
+I wanted to check one important part of the requirement:
 
-**The query itself doesn't break.** That's what the index is for:
+> Will this endpoint still perform well when the number of orders becomes much larger?
 
-| reading page 500 | rows read | time |
-| --- | --- | --- |
-| cursor pagination | 20 | 0.21 ms |
-| `OFFSET 10000` | 10,020 | 21.09 ms |
-| cursor, index removed | 190,036 | 165.82 ms |
+The main things that matter here are the pagination strategy and the database index.
 
-Cursor pagination reads 20 rows whether you're on page 1 or page 500. Having more data
-doesn't change that.
+### Cursor pagination vs OFFSET
 
-### What does break: the data stops fitting in memory
+I tested three cases:
 
-Postgres keeps recently used data in memory and only goes to disk when it has to.
+| Query                               | Rows read |      Time |
+| ----------------------------------- | --------: | --------: |
+| Cursor pagination                   |        20 |   0.21 ms |
+| `OFFSET 10000`                      |    10,020 |  21.09 ms |
+| Cursor pagination without the index |   190,036 | 165.82 ms |
 
-Right now there are 50,000 orders. The whole table and its index fit in memory, so every
-read is instant — the query plans all say `shared hit`, meaning nothing came from disk.
+The exact numbers will change depending on the machine and database state, but the difference is important.
 
-At 5 million orders it won't all fit. So when someone asks for their history, Postgres
-has to go and read it from disk. Same query, same index, same 20 rows — but now it waits
-on the disk. A request goes from about 2 ms to tens of milliseconds.
+With cursor pagination, Postgres can use the index to continue from the previous position and read only the next page of results.
 
-### Then it gets worse, in a way that's easy to misdiagnose
+With `OFFSET`, the database still needs to walk through the rows before the requested page. As the page number becomes larger, more rows need to be skipped.
 
-Slow queries hold a database connection for longer. We only allow 10 at once.
+The index is also important. Without it, even cursor pagination becomes much slower because Postgres has to scan many more rows to find the requested records.
 
-Once those 10 are all busy, new requests have to queue up waiting for a free one. And
-because every endpoint shares those same 10 connections, **the timeouts start appearing
-on other endpoints** — ones that aren't slow at all. So you go looking in the wrong
-place, while the endpoint that actually caused it still looks healthy.
+### What I would expect at a much larger scale
 
-### Why I wouldn't notice from the average
+I have not load tested this application with millions of records, so I don't want to claim exact performance numbers that I haven't measured.
 
-Most people have about 10 orders, so most requests stay fast and the average barely
-moves. My own test shows this: even with one account holding 200,000 orders, normal
-users still come back in **2 ms**. The slow one disappears into the average.
+But as the data grows, the things I would watch first are:
 
-So I'd watch three things:
+1. **Query execution time** — especially for users with a large number of orders.
+2. **Query plans** — to make sure Postgres continues to use the expected index.
+3. **Slow requests** — average response time can hide problems that affect only a small number of users.
+4. **Database connection usage** — slow queries can keep connections busy and affect other requests.
 
-1. **How big the orders table and index are compared to the memory Postgres has for
-   them** (`shared_buffers`). This is the one that warns you *early* — you can see it
-   coming weeks before anything gets slow. Response time only tells you it already
-   happened.
-2. **p99, not the average.** The average can't see a problem that only affects a few
-   requests.
-3. **How long requests wait for a database connection.** That's the warning for the
-   problem above, and it tells you "we ran out of connections" rather than just "the
-   database is slow."
+If the application actually reached a much larger scale, I would measure the real bottleneck first before adding solutions such as caching, partitioning, or additional infrastructure.
 
-### What I'd do about it
-
-Nothing yet. But the fix is known: split the orders table by date. People mostly look at
-recent orders, so the recent part stays small enough to stay in memory. I didn't build
-it because at 50,000 rows I'd be solving a problem I don't have, and it's not hard to
-add later.
-
-### One thing that isn't a scale problem, because of where one line sits
-
-The permission check runs **before** the database query. So if you ask for someone
-else's orders you get `403` whether or not that person exists — the endpoint tells you
-nothing either way.
-
-If I'd looked up the user first and returned `404` when they didn't exist, then anyone
-with a valid login could work out which user ids are real, just by trying numbers and
-watching the status code.
-
-Same code, opposite result, purely because of the order. There's a test for it, and the
-Postman collection shows both: user `999999` gives `403` to a normal user and `404` to
-an admin.
-
-The check that tells "no orders" apart from "no such user" only runs when the page comes
-back empty — if there are orders, the user obviously exists. So it costs nothing on the
-normal path.
+For this assignment, the main goal was simpler: make sure the current query has a good access pattern and confirm it with actual query plans and benchmarks.
 
 ---
 
