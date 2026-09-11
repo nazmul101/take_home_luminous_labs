@@ -18,7 +18,7 @@ have inherited an invalidation problem (when does a new order appear in history?
 to solve a problem I do not have at 50k rows.
 
 **What I did instead:** fixed the query. Index plus keyset pagination. The
-benchmark later showed the first page at 2.67 ms p50 — there is nothing for a cache
+benchmark later showed the first page at 2.09 ms p50 — there is nothing for a cache
 to improve.
 
 ---
@@ -98,7 +98,7 @@ invites the obvious rebuttal.
 **Softened to:** no count *on the read path*, per page request. A product that needs
 a total gets it from an approximate count, a maintained counter, or a separate
 endpoint. The measurement supports the narrow claim and not the broad one:
-`count(*)` for the 200k-order account is 37.66 ms against 3.72 ms for the page
+`count(*)` for the 200k-order account is 27.23 ms against 2.32 ms for the page
 itself.
 
 ---
@@ -152,12 +152,94 @@ that an index "should" be used.
 
 ---
 
+## 9. Passwords — the model argued hard for hashing; I overruled it
+
+**Model's position:** plaintext passwords contradict the enumeration-leak care taken
+everywhere else in the submission. A reviewer reads the 403-before-existence argument
+in DECISIONS.md, opens schema.sql, and finds passwords in the clear. `bcrypt` is one
+dependency and about ten minutes.
+
+**I overruled it.** Out of scope for this exercise: the brief asks who may read an
+order history, not how credentials are stored, and login exists only so the Postman
+collection is self-contained.
+
+**What I took from its argument anyway:** it is now the *first* entry in the
+deliberate-omissions section, with the remediation order spelled out, rather than a
+line in schema.sql nobody reads. The model's real point was not "hash it" but "these
+two facts cannot sit in one repository without an explanation" — and that part I
+accepted.
+
+---
+
+## 10. Two login endpoints — I asked, the model refused
+
+I specified `/auth/admin/login` and `/auth/user/login`.
+
+**Model pushed back:** both do identical work — check credentials, mint a token — since
+the role comes from the user's row either way. Two routes invites "why two?" with no
+good answer, and implies an admin cannot authenticate through the ordinary one.
+
+**I agreed.** One `POST /api/auth/login`.
+
+---
+
+## 11. `statusCode` in the response body — I proposed it, it talked me down
+
+I wanted `{ statusCode, data }`. The model pointed out it duplicates the HTTP status,
+and that if the two ever disagree the client has to pick a winner.
+
+Settled on `{ success, message, data, meta }`, with pagination in `meta` so `data`
+stays a clean array.
+
+---
+
+## 12. Scope — the model flagged my own instructions as over-budget
+
+When I specified roles, login, Postman and a full restructure, the model's first
+response was that this pushes past the brief's 2-3 hour ceiling and that overbuilding
+is a scored negative. It recommended dropping the per-module `error/` and `utils/`
+folders unless they had real content.
+
+**I kept the scope** — login and Postman make the thing testable, which the brief cares
+about — **and took the folder advice.** There is no empty scaffolding in `modules/`.
+
+It also flagged that changing the schema invalidates every benchmark number already
+written into DECISIONS.md. That was correct and I had not thought about it; the figures
+were re-measured and re-synced rather than left stale.
+
+---
+
+## 13. Malformed JSON returned 500 — found by hand, not by the suite
+
+Discovered while smoke-testing the finished service with curl: a request body that is
+not valid JSON came back **500**, not 400.
+
+**Cause:** `express.json()` rejects a bad body with its own `SyntaxError`, decorated
+with `type: 'entity.parse.failed'` and `status: 400`. The global error handler matched
+`CustomError` and `ZodError`, then fell through to the catch-all 500.
+
+**Why it matters more than it looks:** a client typo would have been reported as a
+server fault. In production that pages whoever is on call and buries real outages in
+noise from malformed requests.
+
+**Fixed** by matching the body-parser shape in `error-handler.middle.ts`, plus a regression
+test in `tests/auth.test.ts`.
+
+The pattern is the same as the alias bug: 21 passing tests, and neither the model nor
+the tests looked at the path a client actually takes when it sends something wrong. Two
+of the three real defects in this build were found by exercising the system rather than
+by asserting on it.
+
+---
+
 ## Where the model was straightforwardly useful
 
 - Express and TypeScript scaffolding, `tsconfig`, `docker-compose`, npm scripts.
 - Turning "seed 50k rows" into set-based `generate_series` inserts rather than a
   loop of 50,000 round trips (8.7 s instead of minutes — the five-minute setup rule).
 - Drafting the test bodies once I had specified what each test needed to pin.
+- The Postman collection scaffolding, including the login test script that stores
+  the token into a collection variable so a reviewer never copies one by hand.
 - Spotting that `npm audit` had a critical advisory in the dev tree and that it was
   vitest/vite, not anything shipped.
 

@@ -1,17 +1,22 @@
-import { createApp } from './app.js';
-import { config } from './config.js';
-import { closePool } from './db/pool.js';
+import { createApp } from './app';
+import { appConf } from './configs/app.config';
+import { db } from './configs/db.config';
 
-const server = createApp().listen(config.PORT, () => {
-  console.log(`listening on http://localhost:${config.PORT}`);
+process.on('uncaughtException', (err: Error) => {
+  console.error('[ERROR] Uncaught exception:', err.message);
+  process.exit(1);
 });
 
-// Without this, `docker compose down` or a Ctrl-C leaves in-flight requests to be
-// killed mid-query and the pool's sockets to be reset rather than closed.
+const server = createApp().listen(appConf.PORT, () => {
+  console.log(`Server started at port ${appConf.PORT}`);
+});
+
+// Without this, `docker compose down` or a Ctrl-C kills in-flight requests mid-query
+// and resets the pool's sockets rather than closing them.
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
     server.close(() => {
-      void closePool().then(() => process.exit(0));
+      void db.close().then(() => process.exit(0));
     });
   });
 }

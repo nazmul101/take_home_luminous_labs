@@ -9,12 +9,11 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
-    "migrate": "tsx src/db/migrate.ts",
-    "seed": "tsx src/db/seed.ts",
-    "seed:skew": "tsx src/db/seed-skew.ts",
+    "migrate": "tsx src/scripts/migrate.ts",
+    "seed": "tsx src/scripts/seed.ts",
+    "seed:skew": "tsx src/scripts/seed-skew.ts",
     "setup": "npm run migrate && npm run seed",
-    "token": "tsx src/auth/mint-token.ts",
-    "bench": "tsx src/db/bench.ts",
+    "bench": "tsx src/scripts/bench.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

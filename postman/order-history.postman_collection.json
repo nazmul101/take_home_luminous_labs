@@ -1,0 +1,451 @@
+{
+  "info": {
+    "name": "Order History API",
+    "description": "Import, click Login, then click any Orders request. The login test script stores the token into a collection variable, so nothing needs to be copied by hand.\n\nSeeded accounts (password for all three: password123):\n- admin@example.com  - admin, may read any user\n- user@example.com   - user 2, has orders\n- empty@example.com  - user 3, has no orders",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "userId", "value": "2", "type": "string" },
+    { "key": "cursor", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+      }
+    },
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Login as admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('200 with a token', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(body.data.token).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('role is admin', () => {",
+                  "    pm.expect(body.data.user.role).to.eql('admin');",
+                  "});",
+                  "",
+                  "// Stored so every request below authenticates without copy-paste.",
+                  "pm.collectionVariables.set('token', body.data.token);",
+                  "pm.collectionVariables.set('userId', String(body.data.user.id));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login as user (has orders)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('200 with a token', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(body.data.token).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('role is user', () => {",
+                  "    pm.expect(body.data.user.role).to.eql('user');",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('token', body.data.token);",
+                  "pm.collectionVariables.set('userId', String(body.data.user.id));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login as user with no orders",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('token', body.data.token);",
+                  "pm.collectionVariables.set('userId', String(body.data.user.id));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"empty@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login with wrong password (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));",
+                  "",
+                  "// The same message is returned for an unknown email. Telling the two",
+                  "// apart would be an account-enumeration oracle.",
+                  "pm.test('message does not reveal whether the account exists', () => {",
+                  "    pm.expect(pm.response.json().message).to.eql('Invalid email or password');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"wrong-password\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login with unknown email (401, identical body)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));",
+                  "pm.test('identical to the wrong-password response', () => {",
+                  "    pm.expect(pm.response.json().message).to.eql('Invalid email or password');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nobody@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Orders",
+      "item": [
+        {
+          "name": "My orders (page 1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('newest first, id breaking ties', () => {",
+                  "    const rows = body.data;",
+                  "    for (let i = 1; i < rows.length; i++) {",
+                  "        const prev = rows[i - 1], cur = rows[i];",
+                  "        pm.expect(prev.created_at >= cur.created_at).to.be.true;",
+                  "        if (prev.created_at === cur.created_at) {",
+                  "            pm.expect(BigInt(prev.id) > BigInt(cur.id)).to.be.true;",
+                  "        }",
+                  "    }",
+                  "});",
+                  "",
+                  "// Saved so the next request continues from here.",
+                  "pm.collectionVariables.set('cursor', body.meta.next_cursor || '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}/orders?limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{userId}}", "orders"],
+              "query": [{ "key": "limit", "value": "5" }]
+            }
+          }
+        },
+        {
+          "name": "My orders (page 2, via cursor)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('a cursor was carried over from page 1', () => {",
+                  "    pm.expect(pm.collectionVariables.get('cursor')).to.not.eql('');",
+                  "});",
+                  "pm.collectionVariables.set('cursor', body.meta.next_cursor || '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}/orders?limit=5&cursor={{cursor}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{userId}}", "orders"],
+              "query": [
+                { "key": "limit", "value": "5" },
+                { "key": "cursor", "value": "{{cursor}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "User with no orders (200, empty)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 with an empty array, not 404', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().data).to.eql([]);",
+                  "});",
+                  "",
+                  "// Run \"Login as user with no orders\" first, or this is a 403.",
+                  "// That 403 is itself correct: user 2 may not read user 3."
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/3/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "3", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Another user's orders (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 - run this while logged in as user@example.com', () => {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/1/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "1", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Nonexistent user as non-admin (403, not 404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// The important one. A non-admin gets 403 whether or not the target",
+                  "// exists, so this endpoint cannot be used to discover which user ids",
+                  "// are real. Compare with the admin request below, which gets 404.",
+                  "pm.test('403, so existence never leaks', () => {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/999999/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "999999", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Nonexistent user as admin (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 - run this after \"Login as admin\"', () => {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/999999/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "999999", "orders"]
+            }
+          }
+        },
+        {
+          "name": "No token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('401', () => pm.response.to.have.status(401));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/users/2/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "2", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Limit above maximum (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('400', () => pm.response.to.have.status(400));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}/orders?limit=5000",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{userId}}", "orders"],
+              "query": [{ "key": "limit", "value": "5000" }]
+            }
+          }
+        },
+        {
+          "name": "Malformed cursor (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Deliberately not a silent reset to page 1 - that turns a client",
+                  "// bug into an endless pagination loop that looks like success.",
+                  "pm.test('400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}/orders?cursor=not-a-real-cursor",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{userId}}", "orders"],
+              "query": [{ "key": "cursor", "value": "not-a-real-cursor" }]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
