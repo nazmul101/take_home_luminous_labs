@@ -167,25 +167,26 @@ Both times the tests and the AI agreed with each other, and both were wrong. Act
 running the thing is what found the problem. That's why `npm run bench` exists instead
 of me just claiming the index works.
 
-### Smaller ones, for completeness
+### Other decisions and changes
 
-- **Prisma.** It suggested an ORM. Prisma's cursor support only handles a single unique
-  column, so my two-part cursor would have ended up as raw SQL anyway.
-- **Three layers.** It justified splitting route/service/repository as "useful for future
-  endpoints." There are no future endpoints. I kept the split for a different reason —
-  the permission rule needed its own test.
-- **No `COUNT(*)` ever.** I wrote that rule first and it was too absolute. Real products
-  do need counts. Softened to: not on this request.
-- **Two login routes.** I asked for a separate admin login. It pointed out both would do
-  identical work, so there is one.
-- **`statusCode` in the response body.** I wanted it. It duplicates the HTTP status, and
-  if the two disagree the client has to pick one. Dropped it.
-- **Scope.** When I added roles, login and Postman, it warned this was pushing past the
-  time budget and that overbuilding counts against you. I kept those but cut the empty
-  folders it flagged.
-- **Benchmarks after a schema change.** It pointed out that changing the schema made every
-  number in this file stale. It was right and I hadn't thought about it — they were
-  re-measured.
+There were several smaller decisions where AI helped me think through the problem, but I still made the final choice.
+
+* **Prisma:** I considered using Prisma, but this endpoint needs cursor pagination based on both `created_at` and `id`. The important query would likely need custom SQL anyway, so I decided not to add an ORM for this small assignment.
+
+* **Project structure:** I initially had route, service, and repository layers. That can be unnecessary for a single endpoint, but I kept the separation because the authorization logic is important and easier to test separately.
+
+* **`COUNT(*)`:** At first, I wrote that the API should never use `COUNT(*)`. That was too absolute. Real applications sometimes need counts. For this endpoint, I simply decided not to calculate the total count because the requirement did not need it.
+
+* **Two login routes:** I initially considered separate login routes for users and admins. Both would perform the same authentication logic, so I kept one login route and included the user's role in the token.
+
+* **`statusCode` in the response:** I originally wanted to include the HTTP status code in the response body. I removed it because HTTP already provides that information, and duplicating it can create confusion.
+
+* **Scope:** I added a few things beyond the main endpoint, such as login and a Postman collection. I tried to keep those useful without turning a small assignment into a large project.
+
+* **Benchmarks:** After changing the schema and query implementation, I ran the benchmarks again. Performance numbers are only useful if they match the current version of the code.
+
+The main value of AI for me was not that it made every decision correctly. It helped me explore different options faster. But I still needed to understand the trade-offs and verify the final implementation myself.
+
 
 ---
 
@@ -220,7 +221,7 @@ The index is also important. Without it, even cursor pagination becomes much slo
 
 I have not load tested this application with millions of records, so I don't want to claim exact performance numbers that I haven't measured.
 
-But as the data grows, the things I would watch first are:
+But as the data grows, I think this indexing and cursor can maintain the query except when the plan need to execute it takes the mermory so sometime it can be unfit on mermory the things I would watch first are:
 
 1. **Query execution time** — especially for users with a large number of orders.
 2. **Query plans** — to make sure Postgres continues to use the expected index.
@@ -318,35 +319,10 @@ hold the SQL. Here the SQL is the thing I care about testing, so it gets its own
 
 ---
 
-## Likely questions
-
-**Why this structure and not one file?**
-Honestly, one file would work for one endpoint. The service layer is separate for one
-reason: the permission rule is the riskiest code here, and I wanted to test it without
-HTTP or a database in the way. That test is `tests/authorization.test.ts`.
-
-**What happens if the input is empty?**
-Empty page → empty list, null cursor, then a check for whether the user exists. Missing
-token → `401` before any query runs. Empty `cursor=` → `400`, not "start from the
-beginning" — that would leave a client paging forever without noticing.
-
-**Pagination just got added as a requirement. Where does it go?**
-It's already here. If it weren't: the repository for the query, `cursor.ts` for encoding,
-the validator for the parameters. The service wouldn't change — it doesn't care how a page
-is bounded.
-
-**If you had to cut this in half?**
-Login and Postman go, and the service folds into the route. What stays: the index, the
-cursor query, the permission check happening before the database lookup, and the benchmark
-script. The benchmark is last to go, because it's the only thing here that found a bug the
-tests couldn't see.
-
----
-
 ## Known limitations
 
 - **Passwords are plaintext.** Explained above, but it belongs here too.
-- **The schema is mine, not yours.** If the real one differs on nullability or id type,
+- **The schema is mine.** If the real one differs on nullability or id type,
   the cursor is the first thing to revisit.
 - **I never load tested it.** Everything here is the cost of one query. The connection
   pool problem in section 3 is reasoning, not measurement — that's the honest difference
